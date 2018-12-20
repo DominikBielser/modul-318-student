@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using SwissTransport;
+using System.Net.Mail;
 
 namespace Fahrplan
 {
@@ -16,7 +17,7 @@ namespace Fahrplan
         Transport transport = new Transport();
         Coordinate coordinate = new Coordinate();
         public Form1()
-      
+
         {
             InitializeComponent();
         }
@@ -71,12 +72,12 @@ namespace Fahrplan
         private void Get_Grid()
         {
             Cursor.Current = Cursors.WaitCursor;
-            //LBL_laden.Visible = true;
+
             DataTable dtt_connections = new DataTable();
             dtt_connections.Columns.Add("Datum");
-            dtt_connections.Columns.Add("Von");
+            dtt_connections.Columns.Add("Abfahrtsort");
             dtt_connections.Columns.Add("Abfahrt");
-            dtt_connections.Columns.Add("Nach");
+            dtt_connections.Columns.Add("Zielort");
             dtt_connections.Columns.Add("Ankunft");
             dtt_connections.Columns.Add("Gleis");
 
@@ -90,7 +91,7 @@ namespace Fahrplan
             }
 
             dgvAbfahrtstafel.DataSource = dtt_connections;
-            //LBL_laden.Visible = false;
+
             UseWaitCursor = false;
         }
 
@@ -101,13 +102,13 @@ namespace Fahrplan
             dtt_routes.Columns.Add("Nach");
             dtt_routes.Columns.Add("Linie");
 
-            //Definieren der Station für die Abfahrtstafel (Inhalt der Textbox wird übergeben)
+            //Zeigt die Station für die Abfahrtstafel an, der Inhalt wird an die Textbox txtAbfahrtsort weitergegeben
             Station station = transport.GetStations(txtAbfahrtsort.Text).StationList.First();
-            StationBoardRoot departures = transport.GetStationBoard(station.Name, station.Id); //Beispiel für station.name ist Luzern, Beispiel für station.Id = 8505000
+            StationBoardRoot departures = transport.GetStationBoard(station.Name, station.Id); //Beispiel für die Station ist Zürich
 
             foreach (StationBoard station_b in departures.Entries)
             {
-                dtt_routes.Rows.Add(Get_Time(station_b.Stop.Departure.ToString()), station_b.To, (station_b.Category + " " + station_b.Number)); //Jede Linie die gefunden wird, wird hier durchgegangen
+                dtt_routes.Rows.Add(Get_Time(station_b.Stop.Departure.ToString()), station_b.To, (station_b.Category + " " + station_b.Number));
             }
 
             dgvAbfahrtstafel.DataSource = dtt_routes;
@@ -121,24 +122,32 @@ namespace Fahrplan
             return date3.ToString("dd.MM.yyyy");
         }
 
-        private string Get_Time(string time1) //Zeit kommt so 13:25:00 und die letzen 2 Stellen :00 werden hier gelöscht.
+        private string Get_Time(string time1) //Zeit ist 18:05:00 die zwei letzten Stellen werden gelöst
         {
             string time2 = time1.Remove(0, 11);
             time2 = time2.Remove(5);
             return time2;
         }
 
+        private void Create_GmapStation(string x, string y)
+        {
+            string url = "https://www.google.ch/maps/place/" + x + "," + y;
+            WebGmaps.Navigate(url);
+        }
+
 
         private void txtAbfahrtsort_TextChanged(object sender, EventArgs e)
         {
-
+            Get_Stations(txtAbfahrtsort.Text, lsbAbfahrt);
         }
 
         private void txtZielort_TextChanged(object sender, EventArgs e)
         {
-
+            Get_Stations(txtZielort.Text, lsbZiel);
         }
-       
+
+
+
 
         private void dateTimePicker1_ValueChanged(object sender, EventArgs e)
         {
@@ -153,7 +162,7 @@ namespace Fahrplan
             }
             else
             {
-                MessageBox.Show("Bitte geben Sie zwei Orte ein!");
+                MessageBox.Show("Bitte geben Sie zwei Orte ein!", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -175,5 +184,84 @@ namespace Fahrplan
         {
 
         }
+
+        private void lsbAbfahrt_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            txtAbfahrtsort.Text = lsbAbfahrt.SelectedItem.ToString();
+            btnSuchen.Focus();
+            lsbAbfahrt.Visible = false;
+        }
+
+        private void lsbZiel_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            txtZielort.Text = lsbZiel.SelectedItem.ToString();
+            btnSuchen.Focus();
+            lsbZiel.Visible = false;
+        }
+
+        private void btnMaps_Click(object sender, EventArgs e)
+        {
+
+            if (txtAbfahrtsort.Text != string.Empty)
+            {
+                Stations stations = transport.GetStations(txtAbfahrtsort.Text);
+                Station station = stations.StationList[0];
+                Create_GmapStation(Convert.ToString(station.Coordinate.XCoordinate).Replace(',', '.'), Convert.ToString(station.Coordinate.YCoordinate).Replace(',', '.'));
+                WebGmaps.Visible = true;
+                btnSchliessen.Visible = true;
+
+            }
+            else
+            {
+                MessageBox.Show("Bitte geben Sie einen Ort ein!");
+            }
+        }
+
+        private void btnSchliessen_Click(object sender, EventArgs e)
+        {
+            WebGmaps.Visible = false;
+            btnSchliessen.Visible = false;
+        }
+
+        private void btnSenden_Click(object sender, EventArgs e)
+        {
+            if (txtMail.Text == "")
+                MessageBox.Show("Bitte ihre E-Mail Adresse eingeben");
+            else
+            {
+                try
+                {
+                    MailMessage mail = new MailMessage();
+                    mail.From = new MailAddress("m318.dominikbielser@gmail.com");
+                    mail.To.Add(new MailAddress(Convert.ToString(this.txtMail)));
+                    mail.Subject = "Fahrplan";
+                    mail.Body = "Hier erhalten Sie ihre Abfahrtstafel von Ihrem gewälhtem Standort";
+                    mail.Body += "<b>" + Get_TableFromDataGrid() + "</b>";
+                    mail.IsBodyHtml = true;
+                    SmtpClient SmtpServer = new SmtpClient();
+                    SmtpServer.Host = "smtp.gmail.com";
+                    SmtpServer.Port = 587;
+                    SmtpServer.Credentials = new System.Net.NetworkCredential("m318.dominikbielser@gmail.com", "Kennwort$11");
+                    SmtpServer.EnableSsl = true;
+                    SmtpServer.Send(mail);
+                    MessageBox.Show("Senden der E-Mail war erfolgreich!");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error: " + ex.Message);
+                }
+            }
+        }
+
+        private void lsbZiel_KeyDown(object sender, KeyEventArgs e)
+        {
+
+        }
+
+        private void txtZielort_KeyDown(object sender, KeyEventArgs e)
+        {
+
+        } 
+        
     }
 }
