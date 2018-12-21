@@ -21,6 +21,7 @@ namespace Fahrplan
         {
             InitializeComponent();
         }
+        
         private void Get_Stations(string text, ListBox listBox)
         {
             if (text.Length >= 3)
@@ -68,7 +69,7 @@ namespace Fahrplan
             }
             return strTable.ToString();
         }
-
+        //Zeigt die Verbindungen an
         private void Get_Grid()
         {
             Cursor.Current = Cursors.WaitCursor;
@@ -94,7 +95,7 @@ namespace Fahrplan
 
             UseWaitCursor = false;
         }
-
+        //Zeigt die Abfahrttafel an
         private void Get_2_Grid()
         {
             DataTable dtt_routes = new DataTable();
@@ -128,7 +129,7 @@ namespace Fahrplan
             time2 = time2.Remove(5);
             return time2;
         }
-
+        
         private void Create_GmapStation(string x, string y)
         {
             string url = "https://www.google.ch/maps/place/" + x + "," + y;
@@ -153,7 +154,7 @@ namespace Fahrplan
         {
 
         }
-
+        //Der Event um die Verbindungen anzeigen zu lassen
         private void btnSuchen_Click(object sender, EventArgs e)
         {
             if (txtAbfahrtsort.Text != string.Empty)
@@ -165,7 +166,7 @@ namespace Fahrplan
                 MessageBox.Show("Bitte geben Sie zwei Orte ein!", "error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
+        //Event um die Anzeigetafel anzuzeigen lassen
         private void btnTafel_Click(object sender, EventArgs e)
         {
             {
@@ -222,7 +223,7 @@ namespace Fahrplan
             WebGmaps.Visible = false;
             btnSchliessen.Visible = false;
         }
-
+        //Event zum versenden von einer E-Mail
         private void btnSenden_Click(object sender, EventArgs e)
         {
             if (txtMail.Text == "")
